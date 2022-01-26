@@ -339,7 +339,7 @@ int main(int argc, char** argv) {
             for (auto f: sec.second) {
                 if (strlen(f->name) > 5 && strncmp(f->name, "%EXP:", 5) == 0) {
                     printf("Adding function %s [at 0x%06X] to exports..\n",f->name + 5, f->offset);
-                    snprintf(fbuf, 1023, "+%s+%06X\n",f->name + 5, f->offset);
+                    snprintf(fbuf, 1023, "+%s;%06X\n",f->name + 5, f->offset);
                     fwrite(fbuf, strlen(fbuf), 1, fp);
                 }
             }
