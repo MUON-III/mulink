@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
 
     size_t ptr = org;
     for (auto f : files) {
-        unsigned int tmp[f.binsz/3];
+        auto *tmp = (unsigned int*)malloc((f.binsz/3) * sizeof(unsigned int));
 
         for (int i=0;i<f.binsz/3;i++) {
             tmp[i] = 0;
@@ -227,6 +227,7 @@ int main(int argc, char** argv) {
         }
 
         memcpy(out+ptr, tmp, sizeof(unsigned int) * (f.binsz/3));
+        free(tmp);
 
         f.lnk.origin = ptr;
         for (int i=0;i<f.lnk.wantssz;i++)
