@@ -12,12 +12,13 @@ struct mulink_function_def {
 };
 
 struct mulink_lookup_function_def {
-    unsigned int lookupoffset;
-    unsigned int lookupmask;
-    char* section;
-    char* name;
+    unsigned int lookupoffset{};
+    unsigned int lookupmask{};
+    char* section{};
+    char* name{};
     bool resolved = false;
 };
+
 
 struct mulink_link_file {
     struct mulink_function_def **has;

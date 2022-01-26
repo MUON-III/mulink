@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 
     cxxopts::Options options("mulink", "Linker for MUON code");
     options.add_options()
-            ("i,input","input files in format <binfile>;<mulinkfile>, use LINKONLY;<mulinkfile> to exclude that binary from the output",cxxopts::value<std::vector<std::string>>())
+            ("i,input","input files in format <binfile>~<mulinkfile>, use LINKONLY~<mulinkfile> to exclude that binary from the output",cxxopts::value<std::vector<std::string>>())
             ("o,output","output file, format binary", cxxopts::value<std::string>())
             ("org","set origin address", cxxopts::value<unsigned int>())
             ("l,library","create library (output mulink file for completed binary). parameter is section name.", cxxopts::value<std::string>())
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     std::vector<struct mulink_file_pair> files = std::vector<struct mulink_file_pair>();
 
     for (const auto& s : result["input"].as<std::vector<std::string>>()) {
-        std::vector<std::string> tmp = split(s, ";");
+        std::vector<std::string> tmp = split(s, "~");
         if (tmp.size() != 2) {
             printf("Invalid input argument: %s\n",s.c_str());
             exit(0);
@@ -50,15 +50,17 @@ int main(int argc, char** argv) {
         printf("Importing binary %s with linker file %s\n",bin.c_str(),lnk.c_str());
 
         bool linkonly = strcmp(bin.c_str(), "LINKONLY") == 0;
-        FILE* binfp;
+        FILE* binfp = NULL;
         if (!linkonly) {
             binfp = fopen(bin.c_str(), "rb");
             if (binfp == NULL) {
                 perror("fopen(bin)");
                 exit(0);
             }
+            printf("Opened %s\n",bin.c_str());
         }
-        FILE* lnkfp = fopen(lnk.c_str(), "r");
+        FILE* lnkfp = NULL;
+        lnkfp = fopen(lnk.c_str(), "rb");
         if (lnkfp == NULL) {
             perror("fopen(lnk)");
             fclose(binfp);
@@ -81,12 +83,12 @@ int main(int argc, char** argv) {
 
         struct mulink_file_pair fp{};
         if (!linkonly) {
-            fp.bin = (unsigned char *) malloc(binsz);
+            fp.bin = (unsigned char *) malloc(binsz + 1);
         } else {
             fp.bin = NULL;
         }
         fp.binsz = binsz;
-        fp.name = (char*)malloc(bin.length() + 1);
+        fp.name = (char*)malloc(bin.length() + 2);
         strcpy(fp.name, bin.c_str());
         if (!linkonly) {
             if (fread(fp.bin, binsz, 1, binfp) != 1) {
@@ -98,14 +100,11 @@ int main(int argc, char** argv) {
             printf("Read %lu bytes (%lu words) from %s\n", binsz, binsz / 3, bin.c_str());
         }
 
-        if (!linkonly)
-            fclose(binfp);
-
         fseek(lnkfp, 0, SEEK_END);
         size_t lnksz = ftell(lnkfp);
         fseek(lnkfp, 0, SEEK_SET);
 
-        char* lnkb = (char*)malloc(lnksz);
+        char* lnkb = (char*)malloc(lnksz + 2);
 
         if (fread(lnkb, lnksz, 1, lnkfp) != 1) {
             perror("fread(lnkfp)");
@@ -120,59 +119,62 @@ int main(int argc, char** argv) {
             fclose(lnkfp);
             exit(0);
         }
-        fclose(lnkfp);
 
-        std::map<std::string, std::vector<struct mulink_function_def>> exports = std::map<std::string, std::vector<struct mulink_function_def>>();
-        std::map<std::string, std::vector<struct mulink_lookup_function_def>> imports = std::map<std::string, std::vector<struct mulink_lookup_function_def>>();
+        free(malloc(69699));
+
+        std::map<std::string, std::vector<struct mulink_function_def*>> exports = std::map<std::string, std::vector<struct mulink_function_def*>>();
+        std::map<std::string, std::vector<struct mulink_lookup_function_def*>> imports = std::map<std::string, std::vector<struct mulink_lookup_function_def*>>();
 
         struct mulink_link_file lnkf{};
+
         for (const auto& line : lines) {
             if (strncmp(line.c_str(), "$ORG:", 5) == 0) { // import
                 sscanf(line.c_str()+5, "%X", &lnkf.origin);
                 printf("[%s] origin: 0x%06X\n",lnk.c_str(),lnkf.origin);
             } else if (strncmp(line.c_str(), "$SEC:", 5) == 0 && line.length() > 5) { // section
-                lnkf.section = (char*)malloc(line.length() - 5);
-                strcpy(lnkf.section,line.c_str()+5);
+                lnkf.section = (char*)malloc(line.length()+1);
+                strncpy(lnkf.section,line.c_str()+5, line.length() - 4);
                 printf("[%s] section: %s\n",lnk.c_str(),lnkf.section);
             } else if (line.length() > 1 && line.c_str()[0] == '+') { // export
                 std::vector<std::string> fields = split(line, ";");
                 if (fields.size() == 2) {
                     unsigned int ptr = strtol(fields.at(1).c_str(),NULL,16);
-                    char* name = (char*)malloc(fields.at(0).length());
-                    strcpy(name, fields.at(0).c_str()+1);
-                    struct mulink_function_def mfd{};
-                    mfd.section = lnkf.section;
-                    mfd.name = name;
+                    char* name = (char*)malloc(fields.at(0).length() + 2);
+                    strncpy(name, fields.at(0).c_str()+1, fields.at(0).length()+1);
+                    struct mulink_function_def *mfd = (struct mulink_function_def*)malloc(sizeof(struct mulink_function_def));
+                    mfd->section = lnkf.section;
+                    mfd->name = name;
                     if (lnkf.origin > ptr) {
-                        printf("Relocation error! Origin is higher than function pointer! [fname=%s]\n",mfd.name);
+                        printf("Relocation error! Origin is higher than function pointer! [fname=%s]\n",mfd->name);
                         exit(0);
                     }
-                    mfd.offset = ptr - lnkf.origin;
+                    mfd->offset = ptr - lnkf.origin;
                     if (exports.count(std::string(lnkf.section)) == 0)
-                        exports[lnkf.section] = std::vector<struct mulink_function_def>();
+                        exports[lnkf.section] = std::vector<struct mulink_function_def*>();
                     exports.at(std::string(lnkf.section)).push_back(mfd);
-		    printf("[%s] export function: %s at 0x%06X\n",lnk.c_str(),mfd.name,mfd.offset);
+		            printf("[%s] export function: %s at 0x%06X\n",lnk.c_str(),mfd->name,mfd->offset);
                 }
             } else if (line.length() > 1 && line.c_str()[0] == '-' && !linkonly) { // import
                 std::vector<std::string> fields = split(line, ";");
                 if (fields.size() == 3) {
                     unsigned int ptr = strtol(fields.at(1).c_str(),NULL,16);
                     unsigned int mask = strtol(fields.at(2).c_str(),NULL,16);
-                    char* name = (char*)malloc(fields.at(0).length());
-                    strcpy(name, fields.at(0).c_str()+1);
-                    struct mulink_lookup_function_def mlfd;
-                    mlfd.section = lnkf.section;
-                    mlfd.name = name;
+                    char* name = (char*)malloc(fields.at(0).length() + 2);
+                    strncpy(name, fields.at(0).c_str()+1, fields.at(0).length()+1);
+                    struct mulink_lookup_function_def *mlfd = (struct mulink_lookup_function_def*)malloc(sizeof(mulink_lookup_function_def));
+                    mlfd->section = lnkf.section;
+                    mlfd->name = name;
+                    mlfd->resolved = 0;
                     if (lnkf.origin > ptr) {
-                        printf("Lookup error! Origin is higher than function pointer! [fname=%s]\n",mlfd.name);
+                        printf("Lookup error! Origin is higher than function pointer! [fname=%s]\n",mlfd->name);
                         exit(0);
                     }
-                    mlfd.lookupoffset = ptr - lnkf.origin;
-                    mlfd.lookupmask = mask;
+                    mlfd->lookupoffset = ptr - lnkf.origin;
+                    mlfd->lookupmask = mask;
                     if (imports.count(std::string(lnkf.section)) == 0)
-                        imports[lnkf.section] = std::vector<struct mulink_lookup_function_def>();
+                        imports[lnkf.section] = std::vector<struct mulink_lookup_function_def*>();
                     imports.at(std::string(lnkf.section)).push_back(mlfd);
-                    printf("[%s] import function: %s at 0x%06X:0x%06X\n",lnk.c_str(),mlfd.name,mlfd.lookupoffset,mlfd.lookupmask);
+                    printf("[%s] import function: %s at 0x%06X:0x%06X\n",lnk.c_str(),mlfd->name,mlfd->lookupoffset,mlfd->lookupmask);
                 }
             }
         }
@@ -180,17 +182,21 @@ int main(int argc, char** argv) {
         lnkf.hassz = exports.size();
         lnkf.wantssz = imports.size();
 
-        lnkf.has = (struct mulink_function_def**)malloc(sizeof(struct mulink_function_def*) * lnkf.hassz);
-        lnkf.wants = (struct mulink_lookup_function_def**)malloc(sizeof(struct mulink_lookup_function_def*) * lnkf.wantssz);
+        lnkf.has = (struct mulink_function_def**)malloc(sizeof(struct mulink_function_def) * lnkf.hassz);
+        for (int i=0;i<lnkf.hassz;i++)
+            lnkf.has[i] = (struct mulink_function_def*)malloc(sizeof(struct mulink_function_def));
+        lnkf.wants = (struct mulink_lookup_function_def**)malloc(sizeof(struct mulink_lookup_function_def) * lnkf.wantssz);
+        for (int i=0;i<lnkf.wantssz;i++)
+            lnkf.wants[i] = (struct mulink_lookup_function_def*)malloc(sizeof(struct mulink_lookup_function_def));
 
         for (const auto& i : exports) {
             int f = 0;
             for (auto e : i.second) {
                 lnkf.has[f] = (struct mulink_function_def*)malloc(sizeof(struct mulink_function_def));
-                memcpy(lnkf.has[f], &e, sizeof(mulink_function_def));
+                memcpy(lnkf.has[f], e, sizeof(mulink_function_def));
                 f++;
 
-                printf("[%s] export %s at 0x%06zX in section %s\n",lnk.c_str(),e.name,(size_t)e.offset,i.first.c_str());
+                printf("[%s] export %s at 0x%06zX in section %s\n",lnk.c_str(),e->name,(size_t)e->offset,i.first.c_str());
             }
         }
 
@@ -198,15 +204,21 @@ int main(int argc, char** argv) {
             int f = 0;
             for (auto e : i.second) {
                 lnkf.wants[f] = (struct mulink_lookup_function_def*)malloc(sizeof(struct mulink_lookup_function_def));
-                memcpy(lnkf.wants[f], &e, sizeof(mulink_lookup_function_def));
+                memcpy(lnkf.wants[f], e, sizeof(mulink_lookup_function_def));
                 f++;
 
-                printf("[%s] import %s at 0x%06X:0x%06X in section %s\n",lnk.c_str(),e.name,e.lookupoffset,e.lookupmask,i.first.c_str());
+                printf("[%s] import %s at 0x%06X:0x%06X in section %s\n",lnk.c_str(),e->name,e->lookupoffset,e->lookupmask,i.first.c_str());
             }
         }
 
         fp.lnk = lnkf;
         files.push_back(fp);
+
+        if (!linkonly)
+            fclose(binfp);
+        fclose(lnkfp);
+
+        free(malloc(69699));
     }
 
     printf("Doing relocation....\n");
@@ -309,7 +321,7 @@ int main(int argc, char** argv) {
     if (result.count("library")) {
         printf("Generating mulink file...\n");
 
-        char* on = (char*)malloc(oname.length() + 7);
+        char* on = (char*)malloc(oname.length() + 8);
         sprintf(on, "%s.mulink",oname.c_str());
 
         char* fbuf = (char*)malloc(1024);
