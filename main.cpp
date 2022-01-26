@@ -151,6 +151,7 @@ int main(int argc, char** argv) {
                     if (exports.count(std::string(lnkf.section)) == 0)
                         exports[lnkf.section] = std::vector<struct mulink_function_def>();
                     exports.at(std::string(lnkf.section)).push_back(mfd);
+		    printf("[%s] export function: %s at 0x%06X\n",lnk.c_str(),mfd.name,mfd.offset);
                 }
             } else if (line.length() > 1 && line.c_str()[0] == '-' && !linkonly) { // import
                 std::vector<std::string> fields = split(line, ";");
@@ -171,6 +172,7 @@ int main(int argc, char** argv) {
                     if (imports.count(std::string(lnkf.section)) == 0)
                         imports[lnkf.section] = std::vector<struct mulink_lookup_function_def>();
                     imports.at(std::string(lnkf.section)).push_back(mlfd);
+                    printf("[%s] import function: %s at 0x%06X:0x%06X\n",lnk.c_str(),mlfd.name,mlfd.lookupoffset,mlfd.lookupmask);
                 }
             }
         }
