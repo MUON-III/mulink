@@ -120,8 +120,6 @@ int main(int argc, char** argv) {
             exit(0);
         }
 
-        free(malloc(69699));
-
         std::map<std::string, std::vector<struct mulink_function_def*>> exports = std::map<std::string, std::vector<struct mulink_function_def*>>();
         std::map<std::string, std::vector<struct mulink_lookup_function_def*>> imports = std::map<std::string, std::vector<struct mulink_lookup_function_def*>>();
 
@@ -179,15 +177,15 @@ int main(int argc, char** argv) {
             }
         }
 
-        lnkf.hassz = exports.size();
-        lnkf.wantssz = imports.size();
+        lnkf.hassz = 0;
+        for (const auto& i : exports)
+            lnkf.hassz += i.second.size();
+        lnkf.wantssz = 0;
+        for (const auto& i : imports)
+            lnkf.wantssz += i.second.size();
 
-        lnkf.has = (struct mulink_function_def**)malloc(sizeof(struct mulink_function_def) * lnkf.hassz);
-        for (int i=0;i<lnkf.hassz;i++)
-            lnkf.has[i] = (struct mulink_function_def*)malloc(sizeof(struct mulink_function_def));
-        lnkf.wants = (struct mulink_lookup_function_def**)malloc(sizeof(struct mulink_lookup_function_def) * lnkf.wantssz);
-        for (int i=0;i<lnkf.wantssz;i++)
-            lnkf.wants[i] = (struct mulink_lookup_function_def*)malloc(sizeof(struct mulink_lookup_function_def));
+        lnkf.has = (struct mulink_function_def**)malloc(sizeof(struct mulink_function_def*) * lnkf.hassz);
+        lnkf.wants = (struct mulink_lookup_function_def**)malloc(sizeof(struct mulink_lookup_function_def*) * lnkf.wantssz);
 
         for (const auto& i : exports) {
             int f = 0;
@@ -218,7 +216,7 @@ int main(int argc, char** argv) {
             fclose(binfp);
         fclose(lnkfp);
 
-        free(malloc(69699));
+        free(lnkb);
     }
 
     printf("Doing relocation....\n");
@@ -326,11 +324,16 @@ int main(int argc, char** argv) {
 
         char* fbuf = (char*)malloc(1024);
 
-        FILE* fp = fopen(on, "w");
+        FILE* fp = fopen(on, "wb");
+        if (fp == NULL) {
+            printf("Error! Cannot open file %s for writing.\n",on);
+            free(on);
+            exit(1);
+        }
         free(on);
 
-        snprintf(fbuf, 1023, "!MULINK1\n$SEC:%s\n$ORG:%06X\n",result["library"].as<std::string>().c_str(), org);
-        fwrite(fbuf, strlen(fbuf), 1, fp);
+        int sl = snprintf(fbuf, 1023, "!MULINK1\n$SEC:%s\n$ORG:%06X\n",result["library"].as<std::string>().c_str(), org);
+        fwrite(fbuf, sl, 1, fp);
 
         for (const auto& sec : exports) {
             for (auto f: sec.second) {
@@ -361,7 +364,8 @@ int main(int argc, char** argv) {
 
     printf("Freeing memory..");
 
-    int freed = 0;
+    int freed = 1;
+    free(out);
     for (auto f : files) {
         for (int i = 0; i < f.lnk.hassz; i++) {
             free(f.lnk.has[i]->name);
