@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 
     if (result.count("help") || result.count("input") == 0 || result.count("output") != 1 || result.count("org") == 0) {
         std::cout << options.help() << std::endl;
-        exit(0);
+        exit(1);
     }
 
     unsigned int org = result["org"].as<unsigned int>();
@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
         std::vector<std::string> tmp = split(s, "~");
         if (tmp.size() != 2) {
             printf("Invalid input argument: %s\n",s.c_str());
-            exit(0);
+            exit(1);
         }
 
         std::string bin = tmp.at(0);
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
             binfp = fopen(bin.c_str(), "rb");
             if (binfp == NULL) {
                 perror("fopen(bin)");
-                exit(0);
+                exit(1);
             }
             printf("Opened %s\n",bin.c_str());
         }
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
         if (lnkfp == NULL) {
             perror("fopen(lnk)");
             fclose(binfp);
-            exit(0);
+            exit(1);
         }
 
         size_t binsz = 0;
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
             printf("Error: file %s size not multiple of word size (size=%lu)!\n",bin.c_str(),binsz);
             fclose(binfp);
             fclose(lnkfp);
-            exit(0);
+            exit(1);
         }
 
         struct mulink_file_pair fp{};
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
                 perror("fread(binfp)");
                 fclose(binfp);
                 fclose(lnkfp);
-                exit(0);
+                exit(1);
             }
             printf("Read %lu bytes (%lu words) from %s\n", binsz, binsz / 3, bin.c_str());
         }
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
         if (fread(lnkb, lnksz, 1, lnkfp) != 1) {
             perror("fread(lnkfp)");
             fclose(lnkfp);
-            exit(0);
+            exit(1);
         }
 
         std::vector<std::string> lines = split(std::string(lnkb),"\n");
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
         if (strcmp(lines.at(0).c_str(), "!MULINK1") != 0) {
             printf("Error: file %s isn't a mulink file!\n", lnk.c_str());
             fclose(lnkfp);
-            exit(0);
+            exit(1);
         }
 
         std::map<std::string, std::vector<struct mulink_function_def*>> exports = std::map<std::string, std::vector<struct mulink_function_def*>>();
@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
                     mfd->name = name;
                     if (lnkf.origin > ptr) {
                         printf("Relocation error! Origin is higher than function pointer! [fname=%s]\n",mfd->name);
-                        exit(0);
+                        exit(1);
                     }
                     mfd->offset = ptr - lnkf.origin;
                     if (exports.count(std::string(lnkf.section)) == 0)
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
                     mlfd->resolved = 0;
                     if (lnkf.origin > ptr) {
                         printf("Lookup error! Origin is higher than function pointer! [fname=%s]\n",mlfd->name);
-                        exit(0);
+                        exit(1);
                     }
                     mlfd->lookupoffset = ptr - lnkf.origin;
                     mlfd->lookupmask = mask;
@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
 
             if (!f->resolved) {
                 printf("[sec:%s] Error: unable to resolve label %s!\n",sec.first.c_str(),f->name);
-                exit(0);
+                exit(1);
             }
         }
     }
