@@ -32,7 +32,6 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wall")
 
 IF (BUILD_STATIC)
     message("** Building static binaries")
-    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-static")
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_EXE_LINKER_FLAGS "-static")
