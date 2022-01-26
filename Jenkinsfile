@@ -26,7 +26,7 @@ node("master") {
     git url: 'https://muon-git.i-am.cool/charlie/mulink.git'
     dir("build"){
       sh 'rm -f mulink'
-      sh 'cmake .. -DUSE_CCACHE=true -DMUST_USE_CCACHE=true'
+      sh 'cmake .. -DBUILD_STATIC=true -DUSE_CCACHE=true -DMUST_USE_CCACHE=true'
       sh 'make -j4'
       archiveArtifacts artifacts: 'mulink', fingerprint: true
     }
