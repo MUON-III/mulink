@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
     for (auto f : files) {
         auto *tmp = (unsigned int*)malloc((f.binsz/3) * sizeof(unsigned int));
 
-        for (int i=0;i<f.binsz/3;i++) {
+        for (size_t i=0;i<f.binsz/3;i++) {
             tmp[i] = 0;
             tmp[i] |= (f.bin[(i*3)] << 16);
             tmp[i] |= (f.bin[(i*3)+1] << 8);
@@ -242,10 +242,10 @@ int main(int argc, char** argv) {
         free(tmp);
 
         f.lnk.origin = ptr;
-        for (int i=0;i<f.lnk.wantssz;i++)
+        for (size_t i=0;i<f.lnk.wantssz;i++)
             f.lnk.wants[i]->lookupoffset += ptr;
 
-        for (int i=0;i<f.lnk.hassz;i++) {
+        for (size_t i=0;i<f.lnk.hassz;i++) {
             f.lnk.has[i]->offset += ptr;
             printf("[%s] label %s now at 0x%06X\n",f.name, f.lnk.has[i]->name, f.lnk.has[i]->offset);
         }
@@ -259,13 +259,13 @@ int main(int argc, char** argv) {
     std::map<std::string, std::vector<struct mulink_lookup_function_def*>> imports = std::map<std::string, std::vector<struct mulink_lookup_function_def*>>();
 
     for (auto f : files) {
-        for (int i=0;i<f.lnk.hassz;i++) {
+        for (size_t i=0;i<f.lnk.hassz;i++) {
             if (exports.count(f.lnk.has[i]->section) == 0)
                 exports[f.lnk.has[i]->section] = std::vector<struct mulink_function_def*>();
             exports[f.lnk.has[i]->section].push_back(f.lnk.has[i]);
         }
 
-        for (int i=0;i<f.lnk.wantssz;i++) {
+        for (size_t i=0;i<f.lnk.wantssz;i++) {
             if (imports.count(f.lnk.wants[i]->section) == 0)
                 imports[f.lnk.wants[i]->section] = std::vector<struct mulink_lookup_function_def*>();
             imports[f.lnk.wants[i]->section].push_back(f.lnk.wants[i]);
@@ -367,13 +367,13 @@ int main(int argc, char** argv) {
     int freed = 1;
     free(out);
     for (auto f : files) {
-        for (int i = 0; i < f.lnk.hassz; i++) {
+        for (size_t i = 0; i < f.lnk.hassz; i++) {
             free(f.lnk.has[i]->name);
             free(f.lnk.has[i]);
             freed+=2;
         }
 
-        for (int i = 0; i < f.lnk.wantssz; i++) {
+        for (size_t i = 0; i < f.lnk.wantssz; i++) {
             free(f.lnk.wants[i]->name);
             free(f.lnk.wants[i]);
             freed+=2;
