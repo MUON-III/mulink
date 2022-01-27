@@ -1,7 +1,7 @@
 
 node("windows-1") {
   stage("Build MULINK for Windows") {
-    git url: 'https://muon-git.i-am.cool/charlie/mulink.git'
+    git url: ${GIT_URL}
     dir("build"){
       if(fileExists("Release")) {
         bat 'rmdir "Release" /S /Q'
@@ -23,7 +23,7 @@ node("master") {
       CC  = '/usr/lib/ccache/gcc'
       CXX = '/usr/lib/ccache/g++'
     }
-    git url: 'https://muon-git.i-am.cool/charlie/mulink.git'
+    git url: ${GIT_URL}
     dir("build"){
       sh 'rm -f mulink'
       sh 'cmake .. -DBUILD_STATIC=true -DUSE_CCACHE=true -DMUST_USE_CCACHE=true'
