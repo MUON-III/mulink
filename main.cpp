@@ -229,6 +229,7 @@ int main(int argc, char** argv) {
 
     size_t ptr = org;
     for (auto f : files) {
+        if (strcmp(f.name,"LINKONLY") == 0) continue;
         auto *tmp = (unsigned int*)malloc((f.binsz/3) * sizeof(unsigned int));
 
         for (size_t i=0;i<f.binsz/3;i++) {
@@ -332,7 +333,7 @@ int main(int argc, char** argv) {
         }
         free(on);
 
-        int sl = snprintf(fbuf, 1023, "!MULINK1\n$SEC:%s\n$ORG:%06X\n",result["library"].as<std::string>().c_str(), org);
+        int sl = snprintf(fbuf, 1023, "!MULINK1\n$SEC:%s\n$ORG:%06X\n",result["library"].as<std::string>().c_str(), 0);
         fwrite(fbuf, sl, 1, fp);
 
         for (const auto& sec : exports) {
